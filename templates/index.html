@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moos Beef - 線上點餐系統 (黑金尊享版)</title>
+    <style>
+        /* --- 全局樣式設定 (黑金風格) --- */
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            /* 深色背景 */
+            color: #e0e0e0;
+            /* 淺色文字 */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .main-container {
+            max-width: 600px;
+            width: 100%;
+            background-color: #1e1e1e;
+            /* 卡片區域背景稍亮 */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+        }
+
+        /* --- 頁首 Header (仿照餐牌頂部) --- */
+        header {
+            background-color: #000;
+            /* 最頂部全黑 */
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 2px solid #d4af37;
+            /* 金色分隔線 */
+        }
+
+        .header-logo {
+            font-size: 48px;
+            font-weight: bold;
+            color: #d4af37;
+            /* 金色 Logo 字樣 */
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+        }
+
+        .header-info {
+            font-size: 14px;
+            color: #b0b0b0;
+            line-height: 1.6;
+        }
+
+        .header-info strong {
+            color: #d4af37;
+        }
+
+        /* --- 菜單分類標題 (仿照餐牌 "丼飯 Rice Bowl") --- */
+        .menu-section {
+            padding: 20px;
+        }
+
+        .section-title-zh {
+            font-size: 28px;
+            font-weight: bold;
+            color: #d4af37;
+            margin: 20px 0 10px 0;
+            text-transform: uppercase;
+        }
+
+        .section-title-en {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        /* --- 餐點項目卡片 (核心設計) --- */
+        .menu-item {
+            background-color: #292929;
+            /* 項目卡片背景 */
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s;
+            /* 微妙的互動效果 */
+        }
+
+        .menu-item:hover {
+            transform: translateY(-3px);
+        }
+
+        /* --- 圓形食物圖片 (仿照餐牌圓圖) --- */
+        .item-img-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .menu-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            /* 圓形 */
+            border: 3px solid #d4af37;
+            /* 金色邊框 */
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .item-code {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            background-color: #d4af37;
+            color: #000;
+            font-weight: bold;
+            font-size: 14px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- 餐點詳細文字 --- */
+        .item-details {
+            flex-grow: 1;
+        }
+
+        .item-name-zh {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 3px;
+        }
+
+        .item-name-en {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 5px;
+            font-style: italic;
+        }
+
+        .item-desc {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .item-price {
+            color: #28a745;
+            /* 綠色價格，強調可負擔但高品質 */
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 5px;
+        }
+
+        /* --- 數量選擇區塊 --- */
+        .order-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .qty-input {
+            width: 50px;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        /* 隱藏預設的上下箭頭，用樣式統一的 input */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* --- 加購選項與表單區塊 --- */
+        .addons-section {
+            background: #1a1a1a;
+            border: 1px dashed #d4af37;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 30px 20px;
+            color: #ccc;
+            font-size: 13px;
+        }
+
+        .addons-section h3 {
+            color: #d4af37;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin: 15px 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #d4af37;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            background: #292929;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        /* --- 總金額與送出按鈕 --- */
+        .total-summary {
+            margin: 30px 20px;
+            background: #292929;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            text-align: center;
+        }
+
+        .total-label {
+            font-size: 16px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .total-amount {
+            font-size: 32px;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: #d4af37;
+            color: #000;
+            padding: 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            background: #b3922b;
+        }
+
+        /* --- Mobile Responsive --- */
+        @media (max-width: 480px) {
+            .main-container {
+                max-width: 100%;
+            }
+
+            .menu-item {
+                padding: 10px;
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .menu-item img {
+                width: 80px;
+                height: 80px;
+                margin-bottom: 10px;
+            }
+
+            .item-code {
+                top: 5px;
+                left: 5px;
+            }
+
+            .order-controls {
+                margin-left: 0;
+                width: 100%;
+                justify-content: center;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-container">
+        <header>
+            <div class="header-logo">Moos</div>
+            <div class="header-info">
+                地址：尖沙咀彌敦道 36-44 號重慶大廈地庫 Heath S30 號舖<br>
+                電話：<strong>65139216</strong><br>
+                <span style="font-size: 11px; color: #777;">(圖片只供參考 Photos are for reference only)</span>
+            </div>
+        </header>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="name">客人稱呼 / 桌號：</label>
+                <input type="text" id="name" name="name" required placeholder="例如：張先生 / A1枱">
+            </div>
+
+            <div class="menu-section">
+                <div class="section-title-zh">丼飯 Rice Bowl</div>
+                <div class="section-title-en">Jap. Style Rice Bowls</div>
+
+                <!-- 餐點項目開始 -->
+                <!-- A1. 三重牛肉山 (120g) -->
+                <div class="menu-item" data-id="A1" data-price="138">
+                    <div class="item-img-wrapper">
+                        <img src="https://images.unsplash.com/photo-1624853263373-9261d38d710f?q=80&w=400&h=400"
+                            alt="A1 三重牛肉山">
+                        <div class="item-code">A1</div>
+                    </div>
+                    <div class="item-details">
+                        <div class="item-name-zh">三重牛肉山 (120g)</div>
+                        <div class="item-name-en">Triple Beef (120g) w/Rice</div>
+                        <div class="item-desc">(西冷牛肉，牛頸脊，封門柳，溫泉蛋)</div>
+                        <div class="item-price">$138</div>
+                    </div>
+                    <div class="order-controls">
+                        <input type="number" min="0" max="10" value="0" class="qty-input" name="item_A1" id="item_A1"
+                            onchange="updateTotal()">
+                        <label for="item_A1" style="display:none;">數量</label>
+                    </div>
+                </div>
+
+                <!-- A2. 香草燒西冷牛肉飯 (70g) -->
+                <div class="menu-item" data-id="A2" data-price="78">
+                    <div class="item-img-wrapper">
+                        <img src="https://images.unsplash.com/photo-1587627904708-464b0c65d1a7?q=80&w=400&h=400"
+                            alt="A2 香草燒西冷牛肉飯">
+                        <div class="item-code">A2</div>
+                    </div>
+                    <div class="item-details">
+                        <div class="item-name-zh">香草燒西冷牛肉飯 (70g)</div>
+                        <div class="item-name-en">Herb Roasted Beef Sirloin (70g) w/ Rice</div>
+                        <div class="item-price">$78</div>
+                    </div>
+                    <div class="order-controls">
+                        <input type="number" min="0" max="10" value="0" class="qty-input" name="item_A2" id="item_A2"
+                            onchange="updateTotal()">
+                        <label for="item_A2" style="display:none;">數量</label>
+                    </div>
+                </div>
+
+                <!-- A3. 慢燒牛頸脊飯 (70g) -->
+                <div class="menu-item" data-id="A3" data-price="75">
+                    <div class="item-img-wrapper">
+                        <img src="https://images.unsplash.com/photo-1600590926952-31c91b743f01?q=80&w=400&h=400"
+                            alt="A3 慢燒牛頸脊飯">
+                        <div class="item-code">A3</div>
+                    </div>
+                    <div class="item-details">
+                        <div class="item-name-zh">慢燒牛頸脊飯 (70g)</div>
+                        <div class="item-name-en">Slow Roasted Beef Chuck Flap (70g) w/ Rice</div>
+                        <div class="item-price">$75</div>
+                    </div>
+                    <div class="order-controls">
+                        <input type="number" min="0" max="10" value="0" class="qty-input" name="item_A3" id="item_A3"
+                            onchange="updateTotal()">
+                        <label for="item_A3" style="display:none;">數量</label>
+                    </div>
+                </div>
+
+                <!-- A4. 燒封門柳牛肉飯 (70g) -->
+                <div class="menu-item" data-id="A4" data-price="80">
+                    <div class="item-img-wrapper">
+                        <img src="

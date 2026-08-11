@@ -1,0 +1,6 @@
+streamlit
+gspread
+oauth2client
+# 如果你的訂單成功頁面有用到 render_template，雖然轉成 Streamlit 後不需要 Flask，
+# 但為了以防萬一，建議檢查 order.py 是否還留有 Flask 相關 import，
+# 如果已完全轉用 streamlit，則不需要 flask 套件。
