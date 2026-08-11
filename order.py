@@ -107,11 +107,11 @@ st.markdown(
     f"<h3 style='text-align: left; color: #8B4513;'>總金額：${total_price}</h3>", unsafe_allow_html=True)
 customer_name = st.text_input("客人稱呼 / 桌號 (必填)")
 
-# --- 核心模組：採用與你穩定專案 100% 一致的 Google Auth 授權邏輯 ---
+# --- 核心模組：具備換行符號自動修正機制的 Google Auth 授權邏輯 ---
 
 
 def get_gspread_client():
-    """取得授權的 gspread client 物件 (對齊穩定專案架構)"""
+    """取得授權的 gspread client 物件 (支援本地檔案與雲端 Secrets 雙軌運行)"""
     if gspread is None or "gcp_service_account" not in st.secrets:
         # 降級至本地端檔案讀取（供 VS Code 本地測試使用）
         json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
@@ -130,7 +130,15 @@ def get_gspread_client():
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
+
+        # 將 st.secrets 轉換為一般字典
         credentials_info = dict(st.secrets["gcp_service_account"])
+
+        # 🔒 自我檢查修正點：確保 private_key 中的跳脫字元 \n 被正確還原，防止 PEM 格式載入失敗
+        if "private_key" in credentials_info:
+            credentials_info["private_key"] = credentials_info["private_key"].replace(
+                "\\n", "\n")
+
         creds = Credentials.from_service_account_info(
             credentials_info, scopes=scopes)
         return gspread.authorize(creds)
