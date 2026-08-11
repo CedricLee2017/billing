@@ -47,8 +47,8 @@ MENU_ITEMS = [
      "desc": "Beef Sirloin, Beef Chuck Flap, Hanging Tender", "price": 138, "img": "A1.jpg"},
     {"id": "A2", "name": "Herb Roasted Beef Sirloin (70g) w/ Rice",
      "desc": "Herb Roasted Beef Sirloin", "price": 78, "img": "A2.jpg"},
-    {"id": "A3", "name": "Slow Roasted Beef Chuck Flap (70g) w/ Rice",
-     "desc": "Slow Roasted Beef Chuck Flap", "price": 75, "img": "A3.jpg"},
+    {"id": "A3", "num": "A3",
+        "name": "Slow Roasted Beef Chuck Flap (70g) w/ Rice", "desc": "Slow Roasted Beef Chuck Flap", "price": 75, "img": "A3.jpg"},
     {"id": "A4", "name": "Roast Beef Hanging Tender (70g) w/ Rice",
      "desc": "Roast Beef Hanging Tender", "price": 80, "img": "A4.jpg"},
     {"id": "A5", "name": "Double Beef w/ Rice",
@@ -108,30 +108,49 @@ st.markdown(
     f"<h3 style='text-align: left; color: #8B4513;'>總金額：${total_price}</h3>", unsafe_allow_html=True)
 customer_name = st.text_input("客人稱呼 / 桌號 (必填)")
 
-# --- 核心模組：修復型態錯誤的環境兼容認證 ---
+# --- 核心模組：支援獨立欄位或 JSON 的雙模式認證 ---
 
 
 def get_gspread_client():
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
 
-    # 檢查是否有設定雲端 secrets
-    if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-        raw_secret = st.secrets["gcp_service_account"]
-        # 如果是 AttrDict 或 dict，直接轉成 dict 處理；如果是字串才用 json.loads
-        if isinstance(raw_secret, str):
-            creds_dict = json.loads(raw_secret)
-        else:
-            creds_dict = dict(raw_secret)
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(
-            creds_dict, scope)
-    else:
-        # 本地端直接讀取檔案
-        json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
-        if not os.path.exists(json_path):
-            raise FileNotFoundError(f"找不到本地金鑰檔案：{json_path}")
-        creds = ServiceAccountCredentials.from_json_keyfile_name(
-            json_path, scope)
+    # 檢查雲端 Secrets
+    if hasattr(st, "secrets"):
+        # 模式 A：如果雲端是用獨立欄位設定（最推薦，絕對不會有 base64 格式錯誤）
+        if "private_key" in st.secrets:
+            creds_dict = {
+                "type": st.secrets["type"],
+                "project_id": st.secrets["project_id"],
+                "private_key_id": st.secrets["private_key_id"],
+                "private_key": st.secrets["private_key"].replace("\\n", "\n"),
+                "client_email": st.secrets["client_email"],
+                "client_id": st.secrets["client_id"],
+                "auth_uri": st.secrets["auth_uri"],
+                "token_uri": st.secrets["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["client_x509_cert_url"]
+            }
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(
+                creds_dict, scope)
+            return gspread.authorize(creds)
+
+        # 模式 B：如果雲端是用大包 JSON 字串設定
+        elif "gcp_service_account" in st.secrets:
+            raw_secret = st.secrets["gcp_service_account"]
+            if isinstance(raw_secret, str):
+                creds_dict = json.loads(raw_secret)
+            else:
+                creds_dict = dict(raw_secret)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(
+                creds_dict, scope)
+            return gspread.authorize(creds)
+
+    # 本地端直接讀取檔案
+    json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"找不到本地金鑰檔案：{json_path}")
+    creds = ServiceAccountCredentials.from_json_keyfile_name(json_path, scope)
 
     return gspread.authorize(creds)
 
