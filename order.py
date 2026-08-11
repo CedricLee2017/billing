@@ -108,18 +108,25 @@ st.markdown(
     f"<h3 style='text-align: left; color: #8B4513;'>總金額：${total_price}</h3>", unsafe_allow_html=True)
 customer_name = st.text_input("客人稱呼 / 桌號 (必填)")
 
-# --- 核心模組：環境兼容認證 ---
+# --- 核心模組：修復型態錯誤的環境兼容認證 ---
 
 
 def get_gspread_client():
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
 
+    # 檢查是否有設定雲端 secrets
     if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-        creds_dict = json.loads(st.secrets["gcp_service_account"])
+        raw_secret = st.secrets["gcp_service_account"]
+        # 如果是 AttrDict 或 dict，直接轉成 dict 處理；如果是字串才用 json.loads
+        if isinstance(raw_secret, str):
+            creds_dict = json.loads(raw_secret)
+        else:
+            creds_dict = dict(raw_secret)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(
             creds_dict, scope)
     else:
+        # 本地端直接讀取檔案
         json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
         if not os.path.exists(json_path):
             raise FileNotFoundError(f"找不到本地金鑰檔案：{json_path}")
