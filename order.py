@@ -1,9 +1,8 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import datetime
 import os
-import json
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="Moos Beef - 線上點餐系統", page_icon="🥩")
@@ -108,31 +107,36 @@ st.markdown(
     f"<h3 style='text-align: left; color: #8B4513;'>總金額：${total_price}</h3>", unsafe_allow_html=True)
 customer_name = st.text_input("客人稱呼 / 桌號 (必填)")
 
-# --- 核心模組：透過結構化 Section 讀取 Secrets ---
+# --- 核心模組：採用與你穩定專案 100% 一致的 Google Auth 授權邏輯 ---
 
 
 def get_gspread_client():
-    scope = ['https://spreadsheets.google.com/feeds',
-             'https://www.googleapis.com/auth/drive']
+    """取得授權的 gspread client 物件 (對齊穩定專案架構)"""
+    if gspread is None or "gcp_service_account" not in st.secrets:
+        # 降級至本地端檔案讀取（供 VS Code 本地測試使用）
+        json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
+        if os.path.exists(json_path):
+            scopes = [
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+            ]
+            creds = Credentials.from_service_account_file(
+                json_path, scopes=scopes)
+            return gspread.authorize(creds)
+        return None
 
-    # 檢查雲端是否設定了 [gcp_service_account] 區塊
-    if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-        # 將 Streamlit 的 AttrDict 轉為標準字典，並確保 private_key 內的換行符號正確
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        if "private_key" in creds_dict:
-            creds_dict["private_key"] = creds_dict["private_key"].replace(
-                "\\n", "\n")
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(
-            creds_dict, scope)
+    try:
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        credentials_info = dict(st.secrets["gcp_service_account"])
+        creds = Credentials.from_service_account_info(
+            credentials_info, scopes=scopes)
         return gspread.authorize(creds)
-
-    # 本地端直接讀取檔案
-    json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
-    if not os.path.exists(json_path):
-        raise FileNotFoundError(f"找不到本地金鑰檔案：{json_path}")
-    creds = ServiceAccountCredentials.from_json_keyfile_name(json_path, scope)
-
-    return gspread.authorize(creds)
+    except Exception as e:
+        st.error(f"Google Sheets 授權失敗: {e}")
+        return None
 
 
 # --- 訂單確認與送出按鈕 ---
@@ -143,6 +147,9 @@ if st.button("確認送出訂單", type="primary", use_container_width=True):
         with st.spinner("正在連線至 Google 試算表，請稍候..."):
             try:
                 client = get_gspread_client()
+                if client is None:
+                    raise Exception("無法取得 Google Sheets 授權客戶端，請檢查 Secrets 設定。")
+
                 sheet = client.open_by_key(
                     '17vqVq5tPUma1ywFWvGPK4Y5R54o5MVL0ZkXbDmg0IVI').sheet1
 
