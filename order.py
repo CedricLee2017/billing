@@ -3,28 +3,26 @@ import os
 import pandas as pd
 import streamlit as st
 
-# 嘗試引入 Google Sheets 套件
+# 嘗試引入 Google Sheets 套件，若失敗則給予提示
 try:
     import gspread
     from google.oauth2.service_account import Credentials
+
+    GSPREAD_AVAILABLE = True
 except ImportError:
-    gspread = None
+    GSPREAD_AVAILABLE = False
 
 # -------------------------------------------------------------
 # 📊 Google Sheets 串接與訂單處理邏輯
 # -------------------------------------------------------------
-SPREADSHEET_NAME = "SW_RTA_Battle_Logs"  # 請確認這是你的 Google 試算表名稱
+SPREADSHEET_NAME = "SW_RTA_Battle_Logs"
 
 
 def get_gspread_client():
     """取得授權的 gspread client 物件 (內嵌完整 Service Account 憑證)"""
-    if gspread is None:
-        st.error(
-            "⚠️ 尚未安裝 gspread 套件，請執行 pip install gspread google-auth"
-        )
+    if not GSPREAD_AVAILABLE:
         return None
 
-    # 直接使用你提供的 Service Account 字典建立憑證
     credentials_info = {
         "type": "service_account",
         "project_id": "api-project-139778228024",
@@ -76,28 +74,28 @@ KkjHCFGV1ZElxHJJpnTViQ==
         )
         return gspread.authorize(creds)
     except Exception as e:
-        st.error(f"⚠️ 建立 Google 憑證細節錯誤: {e}")
+        st.error(f"⚠️ 建立憑證發生例外錯誤: {e}")
         return None
 
 
 def process_order(df, sheet_name="Sheet1"):
-    """處理訂單資料並寫入 Google Sheets"""
+    """處理訂單資料並安全寫入 Google Sheets"""
+    if not GSPREAD_AVAILABLE:
+        st.error("❌ 伺服器端尚未安裝 gspread 套件，無法進行 Google 試算表同步。")
+        return
+
     client = get_gspread_client()
     if client is None:
-        st.error("系統錯誤: 無法取得 Google Sheets 授權客戶端，請檢查憑證設定。")
+        st.error("❌ 無法取得 Google Sheets 授權客戶端，請檢查憑證格式。")
         return
 
     try:
-        # 開啟試算表
         sh = client.open(SPREADSHEET_NAME)
-
-        # 檢查工作表是否存在，不存在則自動建立
         try:
             worksheet = sh.worksheet(sheet_name)
         except gspread.exceptions.WorksheetNotFound:
             worksheet = sh.add_worksheet(title=sheet_name, rows=100, cols=20)
 
-        # 清空並寫入新資料
         worksheet.clear()
         data_to_write = [df.columns.values.tolist()] + df.astype(
             str
@@ -110,9 +108,29 @@ def process_order(df, sheet_name="Sheet1"):
 
     except gspread.exceptions.SpreadsheetNotFound:
         st.error(
-            f"❌ 找不到名稱為 `{SPREADSHEET_NAME}` 的 Google 試算表！"
-            f"請確認您已在 Google 試算表中將此 Email 設為編輯者：\n"
-            f"`order-216@api-project-139778228024.iam.gserviceaccount.com`"
+            f"❌ 找不到名稱為 `{SPREADSHEET_NAME}` 的 Google 試算表！\n"
+            f"請確認您已將該試算表共用給：`order-216@api-project-139778228024.iam.gserviceaccount.com`"
         )
     except Exception as e:
-        st.error(f"❌ 寫入 Google Sheets 時發生錯誤: {e}")
+        st.error(f"❌ 寫入 Google Sheets 時發生未預期錯誤: {e}")
+
+
+# -------------------------------------------------------------
+# 🖥️ Streamlit 畫面渲染 (確保有東西顯示，避免白畫面)
+# -------------------------------------------------------------
+st.title("📦 訂單管理與 Google Sheets 同步系統")
+
+# 建立一個測試用的 DataFrame 確保畫面能正常運作
+sample_data = {
+    "訂單編號": ["ORD001", "ORD002"],
+    "品項": ["招牌套餐", "特製飲品"],
+    "數量": [2, 1],
+}
+df_test = pd.DataFrame(sample_data)
+
+st.subheader("📋 目前測試訂單預覽")
+st.dataframe(df_test)
+
+if st.button("確認送出訂單並同步至 Google Sheets"):
+    with st.spinner("正在同步至 Google Sheets..."):
+        process_order(df_test, sheet_name="Orders")
