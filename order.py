@@ -1,9 +1,16 @@
-import streamlit as st
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import datetime
 import os
 import json
+import pandas as pd
+import streamlit as st
+
+# 嘗試引入 Google Sheets 相關套件
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSPREAD_AVAILABLE = True
+except ImportError:
+    GSPREAD_AVAILABLE = False
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="Moos Beef - 線上點餐系統", page_icon="🥩")
@@ -108,37 +115,45 @@ st.markdown(
     f"<h3 style='text-align: left; color: #8B4513;'>總金額：${total_price}</h3>", unsafe_allow_html=True)
 customer_name = st.text_input("客人稱呼 / 桌號 (必填)")
 
-# --- 核心模組：透過結構化 Section 讀取 Secrets ---
+# --- 核心模組：安全讀取 Secrets 或本地 JSON 憑證 ---
 
 
 def get_gspread_client():
-    scope = ['https://spreadsheets.google.com/feeds',
-             'https://www.googleapis.com/auth/drive']
+    if not GSPREAD_AVAILABLE:
+        raise ImportError(
+            "尚未安裝 gspread 或 google-auth 套件，請檢查 requirements.txt。")
 
-    # 檢查雲端是否設定了 [gcp_service_account] 區塊
+    scope = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ]
+
+    # 1. 優先檢查 Streamlit Cloud Secrets (雲端環境)
     if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-        # 將 Streamlit 的 AttrDict 轉為標準字典，並確保 private_key 內的換行符號正確
         creds_dict = dict(st.secrets["gcp_service_account"])
         if "private_key" in creds_dict:
+            # 確保雲端讀取時的換行符號正確還原
             creds_dict["private_key"] = creds_dict["private_key"].replace(
                 "\\n", "\n")
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(
-            creds_dict, scope)
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         return gspread.authorize(creds)
 
-    # 本地端直接讀取檔案
-    json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
+    # 2. 本地端開發讀取檔案
+    json_path = "billing.json"
     if not os.path.exists(json_path):
-        raise FileNotFoundError(f"找不到本地金鑰檔案：{json_path}")
-    creds = ServiceAccountCredentials.from_json_keyfile_name(json_path, scope)
+        json_path = r"C:\Users\user\Desktop\python\billing\billing.json"
 
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"找不到本地金鑰檔案，請確認路徑或已設定 Streamlit Secrets。")
+
+    creds = Credentials.from_service_account_file(json_path, scopes=scope)
     return gspread.authorize(creds)
 
 
 # --- 訂單確認與送出按鈕 ---
 if st.button("確認送出訂單", type="primary", use_container_width=True):
     if not customer_name or total_price == 0:
-        st.warning("請檢查訂單內容與稱呼！")
+        st.warning("請檢查訂單內容與稱呼是否完整！")
     else:
         with st.spinner("正在連線至 Google 試算表，請稍候..."):
             try:
